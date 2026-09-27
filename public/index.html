@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מזג האוויר בעולם</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --surface-2: #eef1f7;
+      --text: #172033;
+      --muted: #5d6679;
+      --border: #dfe4ee;
+      --primary: #2f5bea;
+      --primary-text: #ffffff;
+      --warn-bg: #fff4e0;
+      --warn-text: #7a4a00;
+      --error-bg: #fde8e8;
+      --error-text: #9b1c1c;
+      --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 6%);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f141d;
+        --surface: #171e2b;
+        --surface-2: #202939;
+        --text: #e8ecf4;
+        --muted: #9aa4b8;
+        --border: #2a3446;
+        --primary: #6d8cff;
+        --primary-text: #0b1020;
+        --warn-bg: #3a2c10;
+        --warn-text: #ffd89a;
+        --error-bg: #3d1717;
+        --error-text: #ffb4b4;
+        --shadow: none;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Heebo', system-ui, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* Header */
+    header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 1.75rem; font-weight: 800; }
+    .subtitle { color: var(--muted); font-size: .9rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .badge { font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-weight: 500; }
+    .badge.mock { background: var(--warn-bg); color: var(--warn-text); }
+    .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .usage { min-width: 170px; font-size: .8rem; color: var(--muted); }
+    .usage-bar { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-top: 4px; }
+    .usage-bar span { display: block; height: 100%; background: var(--primary); transition: width .3s; }
+    .usage-bar span.high { background: #e0671f; }
+    button.refresh {
+      font: inherit; font-weight: 500; border: 0; border-radius: 10px; padding: 10px 16px;
+      background: var(--primary); color: var(--primary-text); cursor: pointer;
+    }
+    button.refresh:disabled { opacity: .55; cursor: not-allowed; }
+
+    .banner { padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; font-size: .9rem; }
+    .banner.warn { background: var(--warn-bg); color: var(--warn-text); }
+    .banner.error { background: var(--error-bg); color: var(--error-text); }
+    [hidden] { display: none !important; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+    .stat .label { color: var(--muted); font-size: .8rem; }
+    .stat .value { font-size: 1.6rem; font-weight: 800; }
+    .stat .detail { font-size: .85rem; color: var(--muted); }
+
+    /* Toolbar */
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+    .toolbar input, .toolbar select {
+      font: inherit; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+    }
+    .toolbar input { flex: 1 1 220px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      font: inherit; font-size: .85rem; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    }
+    .chip[aria-pressed="true"] { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
+
+    /* Cards */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+      box-shadow: var(--shadow); border-inline-start: 5px solid var(--accent, var(--border));
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .card-top { display: flex; gap: 10px; align-items: center; }
+    .flag { width: 34px; height: 24px; object-fit: cover; border-radius: 4px; box-shadow: 0 0 0 1px var(--border); flex: none; }
+    .card h3 { margin: 0; font-size: 1.05rem; }
+    .place { color: var(--muted); font-size: .82rem; }
+    .card-main { display: flex; align-items: center; gap: 10px; }
+    .icon { font-size: 2.4rem; line-height: 1; }
+    .temp { font-size: 2.4rem; font-weight: 800; direction: ltr; }
+    .desc { margin: 0; font-weight: 500; }
+    .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; padding-top: 10px; border-top: 1px solid var(--border); }
+    .meta div { text-align: center; }
+    .meta dt { font-size: .72rem; color: var(--muted); }
+    .meta dd { margin: 0; font-weight: 700; font-size: .9rem; direction: ltr; }
+    .card.failed { opacity: .7; }
+    .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 40px 0; }
+    .skeleton { height: 210px; background: var(--surface-2); border-radius: 16px; animation: pulse 1.2s infinite ease-in-out; }
+    @keyframes pulse { 50% { opacity: .5; } }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 1.4rem; }
+      .actions { width: 100%; justify-content: space-between; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>🌍 מזג האוויר בעולם</h1>
+        <div class="subtitle">
+          <span id="updated">טוען…</span>
+          <span id="source" class="badge" hidden></span>
+          <span id="mock" class="badge mock" hidden>נתוני דמו</span>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="usage" title="ספירה מקומית של הקריאות שהדשבורד ביצע החודש">
+          <div id="usage-text">קריאות API החודש: –</div>
+          <div class="usage-bar"><span id="usage-bar" style="width:0"></span></div>
+        </div>
+        <button id="refresh" class="refresh" disabled>🔄 רענון</button>
+      </div>
+    </header>
+
+    <div id="banner" class="banner" hidden></div>
+
+    <section class="stats" id="stats" aria-label="סיכום"></section>
+
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="חיפוש מדינה או עיר…" aria-label="חיפוש" />
+      <div class="chips" id="chips" role="group" aria-label="סינון לפי יבשת"></div>
+      <select id="sort" aria-label="מיון">
+        <option value="temp-desc">הכי חם ← הכי קר</option>
+        <option value="temp-asc">הכי קר ← הכי חם</option>
+        <option value="name">לפי שם מדינה</option>
+        <option value="humidity">לפי לחות</option>
+      </select>
+    </div>
+
+    <main class="grid" id="grid">
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    </main>
+  </div>
+
+  <script>
+    const state = { data: null, search: '', continent: 'הכל', sort: 'temp-desc' };
+    const $ = (id) => document.getElementById(id);
+
+    // Weatherstack weather_code -> [emoji, Hebrew label]
+    function condition(code, night) {
+      const has = (list) => list.includes(code);
+      if (code === 113) return night ? ['🌙', 'בהיר'] : ['☀️', 'שמשי'];
+      if (code === 116) return [night ? '☁️' : '⛅', 'מעונן חלקית'];
+      if (has([119, 122])) return ['☁️', 'מעונן'];
+      if (has([143, 248, 260])) return ['🌫️', 'ערפל'];
+      if (has([200, 386, 389])) return ['⛈️', 'סופת רעמים'];
+      if (has([392, 395])) return ['⛈️', 'שלג ורעמים'];
+      if (has([179, 227, 230, 323, 326, 329, 332, 335, 338, 368, 371])) return ['❄️', 'שלג'];
+      if (has([182, 185, 281, 284, 311, 314, 317, 320, 350, 362, 365, 374, 377])) return ['🌨️', 'גשם קפוא'];
+      if (has([176, 263, 266, 293, 296, 353])) return ['🌦️', 'גשם קל'];
+      if (has([299, 302, 305, 308, 356, 359])) return ['🌧️', 'גשם'];
+      return ['🌡️', ''];
+    }
+
+    // Cold (blue) -> hot (red) accent
+    function tempColor(t) {
+      const ratio = Math.min(Math.max((t + 10) / 50, 0), 1);
+      return `hsl(${Math.round(215 - ratio * 205)} 80% 52%)`;
+    }
+
+    // Live local time from the city's UTC offset
+    function localDate(utcOffset) {
+      const now = new Date();
+      return new Date(now.getTime() + now.getTimezoneOffset() * 60_000 + utcOffset * 3_600_000);
+    }
+    const timeText = (d) => d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    const isNight = (d) => d.getHours() < 6 || d.getHours() >= 19;
+
+    const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+    function showBanner(message, kind = 'warn') {
+      const el = $('banner');
+      el.hidden = !message;
+      el.className = `banner ${kind}`;
+      el.textContent = message || '';
+    }
+
+    function renderHeader() {
+      const d = state.data;
+      $('mock').hidden = !d.mock;
+      if (d.updatedAt) {
+        const when = new Date(d.updatedAt).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
+        $('updated').textContent = `עודכן: ${when}`;
+        $('source').hidden = false;
+        $('source').textContent = d.source === 'live' ? 'עדכני' : 'מהמטמון';
+      }
+      const { calls, limit, perRefresh } = d.usage;
+      $('usage-text').textContent = `קריאות API החודש: ${calls} / ${limit}`;
+      const pct = Math.min((calls / limit) * 100, 100);
+      $('usage-bar').style.width = `${pct}%`;
+      $('usage-bar').classList.toggle('high', pct >= 80);
+      const btn = $('refresh');
+      btn.textContent = `🔄 רענון (${perRefresh} קריאות)`;
+      btn.disabled = !d.mock && calls + perRefresh > limit;
+      btn.title = btn.disabled ? 'אין מספיק קריאות החודש' : '';
+    }
+
+    function renderStats(cities) {
+      if (!cities.length) { $('stats').innerHTML = ''; return; }
+      const by = (key, dir) => cities.reduce((a, b) => (dir * (b[key] - a[key]) > 0 ? b : a));
+      const hottest = by('temperature', 1);
+      const coldest = by('temperature', -1);
+      const humid = by('humidity', 1);
+      const avg = Math.round(cities.reduce((s, c) => s + c.temperature, 0) / cities.length);
+      const tiles = [
+        ['🔥 הכי חם', `${hottest.temperature}°`, `${hottest.country} · ${hottest.capital}`],
+        ['🧊 הכי קר', `${coldest.temperature}°`, `${coldest.country} · ${coldest.capital}`],
+        ['🌡️ ממוצע', `${avg}°`, `${cities.length} בירות`],
+        ['💧 הכי לח', `${humid.humidity}%`, `${humid.country} · ${humid.capital}`],
+      ];
+      $('stats').innerHTML = tiles.map(([label, value, detail]) => `
+        <div class="stat"><div class="label">${label}</div><div class="value">${value}</div><div class="detail">${escapeHtml(detail)}</div></div>`).join('');
+    }
+
+    function renderChips() {
+      const continents = ['הכל', ...new Set(state.data.cities.map((c) => c.continent))];
+      $('chips').innerHTML = continents.map((c) =>
+        `<button class="chip" aria-pressed="${c === state.continent}" data-continent="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    }
+
+    function visibleCities() {
+      const q = state.search.trim().toLowerCase();
+      const list = state.data.cities.filter((c) =>
+        (state.continent === 'הכל' || c.continent === state.continent) &&
+        (!q || `${c.country} ${c.capital}`.toLowerCase().includes(q)));
+      const val = (c, k) => (c.error ? -Infinity : c[k]);
+      const sorters = {
+        'temp-desc': (a, b) => val(b, 'temperature') - val(a, 'temperature'),
+        'temp-asc': (a, b) => (a.error ? Infinity : a.temperature) - (b.error ? Infinity : b.temperature),
+        name: (a, b) => a.country.localeCompare(b.country, 'he'),
+        humidity: (a, b) => val(b, 'humidity') - val(a, 'humidity'),
+      };
+      return list.sort(sorters[state.sort]);
+    }
+
+    function cardHtml(c) {
+      const flag = `<img class="flag" src="https://flagcdn.com/w80/${c.id}.png" alt="" loading="lazy" />`;
+      if (c.error) {
+        return `<article class="card failed">
+          <div class="card-top">${flag}<div><h3>${escapeHtml(c.country)}</h3><div class="place">${escapeHtml(c.capital)}</div></div></div>
+          <p class="desc">⚠️ אין נתונים</p><div class="place">${escapeHtml(c.error)}</div></article>`;
+      }
+      const local = localDate(c.utcOffset);
+      const [icon, label] = condition(c.code, isNight(local));
+      return `<article class="card" style="--accent:${tempColor(c.temperature)}">
+        <div class="card-top">${flag}<div>
+          <h3>${escapeHtml(c.country)}</h3>
+          <div class="place">${escapeHtml(c.capital)} · <span class="clock" data-offset="${c.utcOffset}">${timeText(local)}</span></div>
+        </div></div>
+        <div class="card-main"><span class="icon" aria-hidden="true">${icon}</span><span class="temp">${c.temperature}°</span></div>
+        <p class="desc" title="${escapeHtml(c.description)}">${escapeHtml(label || c.description)}</p>
+        <dl class="meta">
+          <div><dt>מורגש</dt><dd>${c.feelslike}°</dd></div>
+          <div><dt>לחות</dt><dd>${c.humidity}%</dd></div>
+          <div><dt>רוח</dt><dd>${c.wind} קמ״ש</dd></div>
+        </dl></article>`;
+    }
+
+    function renderGrid() {
+      const cities = visibleCities();
+      $('grid').innerHTML = cities.length ? cities.map(cardHtml).join('') : '<p class="empty">לא נמצאו מדינות תואמות</p>';
+    }
+
+    function render() {
+      renderHeader();
+      if (!state.data.cities) return;
+      renderStats(state.data.cities.filter((c) => !c.error));
+      renderChips();
+      renderGrid();
+    }
+
+    async function load(url, options) {
+      $('refresh').disabled = true;
+      try {
+        const res = await fetch(url, options);
+        const body = await res.json();
+        if (body.error) {
+          // Keep showing the previous data; just update the usage meter
+          state.data = state.data ? { ...state.data, usage: body.usage } : body;
+          showBanner(body.error, res.status === 429 ? 'warn' : 'error');
+          if (!state.data.cities) $('grid').innerHTML = '<p class="empty">אין נתונים להצגה</p>';
+        } else {
+          state.data = body;
+          const failed = body.cities.filter((c) => c.error).length;
+          showBanner(failed ? `לא התקבלו נתונים עבור ${failed} מדינות` : '');
+        }
+        render();
+      } catch {
+        showBanner('לא ניתן להתחבר לשרת – ודאי שהפקודה npm run dashboard רצה', 'error');
+        if (state.data) renderHeader();
+      }
+    }
+
+    $('refresh').addEventListener('click', () => {
+      const { calls, limit, perRefresh } = state.data.usage;
+      if (!state.data.mock && !confirm(`הרענון ישתמש ב-${perRefresh} קריאות API.\nנשארו לך ${limit - calls} קריאות החודש. להמשיך?`)) return;
+      load('/api/refresh', { method: 'POST' });
+    });
+    $('search').addEventListener('input', (e) => { state.search = e.target.value; state.data?.cities && renderGrid(); });
+    $('sort').addEventListener('change', (e) => { state.sort = e.target.value; state.data?.cities && renderGrid(); });
+    $('chips').addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      state.continent = chip.dataset.continent;
+      renderChips();
+      renderGrid();
+    });
+
+    // Tick local clocks every 30 seconds
+    setInterval(() => {
+      document.querySelectorAll('.clock').forEach((el) => { el.textContent = timeText(localDate(Number(el.dataset.offset))); });
+    }, 30_000);
+
+    load('/api/weather');
+  </script>
+</body>
+</html>

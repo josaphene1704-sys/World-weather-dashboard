@@ -1,0 +1,25 @@
+// Capitals of the world's major countries. Each one costs 1 API call per refresh.
+// Coordinates are used as the query so Weatherstack never picks the wrong city.
+export const CITIES = [
+  { id: 'us', country: 'ארצות הברית', capital: 'וושינגטון', continent: 'צפון אמריקה', lat: 38.9072, lon: -77.0369 },
+  { id: 'ca', country: 'קנדה', capital: 'אוטווה', continent: 'צפון אמריקה', lat: 45.4215, lon: -75.6972 },
+  { id: 'mx', country: 'מקסיקו', capital: 'מקסיקו סיטי', continent: 'צפון אמריקה', lat: 19.4326, lon: -99.1332 },
+  { id: 'br', country: 'ברזיל', capital: 'ברזיליה', continent: 'דרום אמריקה', lat: -15.7939, lon: -47.8828 },
+  { id: 'ar', country: 'ארגנטינה', capital: 'בואנוס איירס', continent: 'דרום אמריקה', lat: -34.6037, lon: -58.3816 },
+  { id: 'gb', country: 'בריטניה', capital: 'לונדון', continent: 'אירופה', lat: 51.5074, lon: -0.1278 },
+  { id: 'fr', country: 'צרפת', capital: 'פריז', continent: 'אירופה', lat: 48.8566, lon: 2.3522 },
+  { id: 'de', country: 'גרמניה', capital: 'ברלין', continent: 'אירופה', lat: 52.52, lon: 13.405 },
+  { id: 'it', country: 'איטליה', capital: 'רומא', continent: 'אירופה', lat: 41.9028, lon: 12.4964 },
+  { id: 'es', country: 'ספרד', capital: 'מדריד', continent: 'אירופה', lat: 40.4168, lon: -3.7038 },
+  { id: 'ru', country: 'רוסיה', capital: 'מוסקבה', continent: 'אירופה', lat: 55.7558, lon: 37.6173 },
+  { id: 'il', country: 'ישראל', capital: 'ירושלים', continent: 'אסיה', lat: 31.7683, lon: 35.2137 },
+  { id: 'tr', country: 'טורקיה', capital: 'אנקרה', continent: 'אסיה', lat: 39.9334, lon: 32.8597 },
+  { id: 'sa', country: 'ערב הסעודית', capital: 'ריאד', continent: 'אסיה', lat: 24.7136, lon: 46.6753 },
+  { id: 'in', country: 'הודו', capital: 'ניו דלהי', continent: 'אסיה', lat: 28.6139, lon: 77.209 },
+  { id: 'cn', country: 'סין', capital: 'בייג׳ינג', continent: 'אסיה', lat: 39.9042, lon: 116.4074 },
+  { id: 'jp', country: 'יפן', capital: 'טוקיו', continent: 'אסיה', lat: 35.6762, lon: 139.6503 },
+  { id: 'kr', country: 'דרום קוריאה', capital: 'סיאול', continent: 'אסיה', lat: 37.5665, lon: 126.978 },
+  { id: 'id', country: 'אינדונזיה', capital: 'ג׳קרטה', continent: 'אסיה', lat: -6.2088, lon: 106.8456 },
+  { id: 'za', country: 'דרום אפריקה', capital: 'פרטוריה', continent: 'אפריקה', lat: -25.7479, lon: 28.2293 },
+  { id: 'au', country: 'אוסטרליה', capital: 'קנברה', continent: 'אוקיאניה', lat: -35.2809, lon: 149.13 },
+];

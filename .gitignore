@@ -1,0 +1,7 @@
+node_modules
+# Secrets
+.env
+.env.*
+!.env.example
+# Local cache + API usage counter
+data/
