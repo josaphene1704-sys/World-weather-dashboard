@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CITIES } from './cities.js';
 import { fetchCurrent, hasApiKey } from './weatherstack.js';
+import { syncWeather, isConfigured as airtableConfigured } from './src/services/airtable.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -137,6 +138,12 @@ async function refresh() {
   }
   const data = { updatedAt: Date.now(), cities: await fetchAllCities() };
   await writeJson(CACHE_FILE, data);
+  // Never mirror mock data into the real table; an Airtable failure must not break the dashboard
+  if (!MOCK && airtableConfigured()) {
+    syncWeather(data.cities, data.updatedAt)
+      .then((n) => console.log(`Airtable: synced ${n} cities`))
+      .catch((err) => console.error('Airtable sync failed:', err.message));
+  }
   return data;
 }
 
