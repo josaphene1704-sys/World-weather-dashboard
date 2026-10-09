@@ -217,7 +217,9 @@
         $('source').hidden = false;
         $('source').textContent = { live: 'עדכני', airtable: '📋 מאיירטייבל' }[d.source] ?? 'מהמטמון';
       }
-      const { calls, limit, perRefresh } = d.usage;
+      const { calls, limit, perRefresh, tracked } = d.usage;
+      // On Vercel the count resets between server restarts, so hide it rather than show a wrong number
+      document.querySelector('.usage').hidden = tracked === false;
       $('usage-text').textContent = `קריאות API החודש: ${calls} / ${limit}`;
       const pct = Math.min((calls / limit) * 100, 100);
       $('usage-bar').style.width = `${pct}%`;
@@ -337,8 +339,9 @@
     }
 
     $('refresh').addEventListener('click', () => {
-      const { calls, limit, perRefresh } = state.data.usage;
-      if (!state.data.mock && !confirm(`הרענון ישתמש ב-${perRefresh} קריאות API.\nנשארו לך ${limit - calls} קריאות החודש. להמשיך?`)) return;
+      const { calls, limit, perRefresh, tracked } = state.data.usage;
+      const left = tracked === false ? '' : `\nנשארו לך ${limit - calls} קריאות החודש.`;
+      if (!state.data.mock && !confirm(`הרענון ישתמש ב-${perRefresh} קריאות API.${left} להמשיך?`)) return;
       showBanner('⏳ מעדכן את מזג האוויר בטבלה ובדאשבורד… זה לוקח כחצי דקה', 'info');
       load('/api/refresh', { method: 'POST' });
     });
