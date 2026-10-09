@@ -215,7 +215,7 @@
         const when = new Date(d.updatedAt).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
         $('updated').textContent = `עודכן: ${when}`;
         $('source').hidden = false;
-        $('source').textContent = d.source === 'live' ? 'עדכני' : 'מהמטמון';
+        $('source').textContent = { live: 'עדכני', airtable: '📋 מאיירטייבל' }[d.source] ?? 'מהמטמון';
       }
       const { calls, limit, perRefresh } = d.usage;
       $('usage-text').textContent = `קריאות API החודש: ${calls} / ${limit}`;
@@ -233,14 +233,15 @@
       const by = (key, dir) => cities.reduce((a, b) => (dir * (b[key] - a[key]) > 0 ? b : a));
       const hottest = by('temperature', 1);
       const coldest = by('temperature', -1);
-      const humid = by('humidity', 1);
+      const withHumidity = cities.filter((c) => c.humidity != null);
+      const humid = withHumidity.length ? withHumidity.reduce((a, b) => (b.humidity > a.humidity ? b : a)) : null;
       const avg = Math.round(cities.reduce((s, c) => s + c.temperature, 0) / cities.length);
       const tiles = [
         ['🔥 הכי חם', `${hottest.temperature}°`, `${hottest.country} · ${hottest.capital}`],
         ['🧊 הכי קר', `${coldest.temperature}°`, `${coldest.country} · ${coldest.capital}`],
         ['🌡️ ממוצע', `${avg}°`, `${cities.length} בירות`],
-        ['💧 הכי לח', `${humid.humidity}%`, `${humid.country} · ${humid.capital}`],
-      ];
+        humid && ['💧 הכי לח', `${humid.humidity}%`, `${humid.country} · ${humid.capital}`],
+      ].filter(Boolean);
       $('stats').innerHTML = tiles.map(([label, value, detail]) => `
         <div class="stat"><div class="label">${label}</div><div class="value">${value}</div><div class="detail">${escapeHtml(detail)}</div></div>`).join('');
     }
@@ -283,9 +284,9 @@
         <div class="card-main"><span class="icon" aria-hidden="true">${icon}</span><span class="temp">${c.temperature}°</span></div>
         <p class="desc" title="${escapeHtml(c.description)}">${escapeHtml(label || c.description)}</p>
         <dl class="meta">
-          <div><dt>מורגש</dt><dd>${c.feelslike}°</dd></div>
-          <div><dt>לחות</dt><dd>${c.humidity}%</dd></div>
-          <div><dt>רוח</dt><dd>${c.wind} קמ״ש</dd></div>
+          <div><dt>מורגש</dt><dd>${c.feelslike != null ? `${c.feelslike}°` : '–'}</dd></div>
+          <div><dt>לחות</dt><dd>${c.humidity != null ? `${c.humidity}%` : '–'}</dd></div>
+          <div><dt>רוח</dt><dd>${c.wind != null ? `${c.wind} קמ״ש` : '–'}</dd></div>
         </dl></article>`;
     }
 
@@ -302,7 +303,11 @@
       renderGrid();
     }
 
-    async function load(url, options) {
+    let busy = false;
+
+    // quiet: background reload - leave the banner alone unless something went wrong
+    async function load(url, options, quiet = false) {
+      busy = true;
       $('refresh').disabled = true;
       try {
         const res = await fetch(url, options);
@@ -315,22 +320,26 @@
         } else {
           state.data = body;
           const failed = body.cities.filter((c) => c.error).length;
-          const at = body.source === 'live' ? body.airtable : null;
+          const at = body.source === 'cache' ? null : body.airtable;
           const atMsg = at?.status === 'ok' ? `✅ ${at.synced} שורות עודכנו באיירטייבל`
             : at?.status === 'error' ? `⚠️ הסנכרון לאיירטייבל נכשל: ${at.error}` : '';
-          const msgs = [failed && `לא התקבלו נתונים עבור ${failed} מדינות`, atMsg].filter(Boolean);
-          showBanner(msgs.join(' · '), failed || at?.status === 'error' ? 'warn' : 'info');
+          const msgs = [body.warning, failed && `לא התקבלו נתונים עבור ${failed} מדינות`, atMsg].filter(Boolean);
+          const problem = body.warning || failed || at?.status === 'error';
+          if (!quiet || problem) showBanner(msgs.join(' · '), problem ? 'warn' : 'info');
         }
         render();
       } catch {
-        showBanner('לא ניתן להתחבר לשרת – ודאי שהפקודה npm run dashboard רצה', 'error');
+        showBanner('לא ניתן להתחבר לשרת – נסו לרענן את הדף בעוד רגע', 'error');
         if (state.data) renderHeader();
+      } finally {
+        busy = false;
       }
     }
 
     $('refresh').addEventListener('click', () => {
       const { calls, limit, perRefresh } = state.data.usage;
       if (!state.data.mock && !confirm(`הרענון ישתמש ב-${perRefresh} קריאות API.\nנשארו לך ${limit - calls} קריאות החודש. להמשיך?`)) return;
+      showBanner('⏳ מעדכן את מזג האוויר בטבלה ובדאשבורד… זה לוקח כחצי דקה', 'info');
       load('/api/refresh', { method: 'POST' });
     });
     $('search').addEventListener('input', (e) => { state.search = e.target.value; state.data?.cities && renderGrid(); });
@@ -348,7 +357,24 @@
       document.querySelectorAll('.clock').forEach((el) => { el.textContent = timeText(localDate(Number(el.dataset.offset))); });
     }, 30_000);
 
-    load('/api/weather');
+    // Re-read the Airtable table every 30 seconds so edits there show up without a page reload
+    setInterval(() => {
+      if (!busy && !document.hidden && state.data?.source === 'airtable') load('/api/weather', undefined, true);
+    }, 30_000);
+
+    // "?refresh=1" comes from the refresh button in the Airtable table: show the current data, then refresh.
+    // The refresh runs from the page (not from the link itself), so link previews and crawlers never spend API calls.
+    async function start() {
+      const params = new URLSearchParams(location.search);
+      const fromTable = params.has('refresh');
+      if (fromTable) history.replaceState(null, '', location.pathname); // a page reload must not refresh again
+      await load('/api/weather');
+      if (fromTable) {
+        showBanner('⏳ מעדכן את מזג האוויר בטבלה ובדאשבורד… זה לוקח כחצי דקה', 'info');
+        await load('/api/refresh', { method: 'POST' });
+      }
+    }
+    start();
   </script>
 </body>
 </html>

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file-if-exists=.env weather.js",
-    "dashboard": "node --env-file-if-exists=.env server.js",
-    "dashboard:mock": "node --env-file-if-exists=.env server.js --mock"
+    "dashboard": "node --env-file-if-exists=.env local-server.js",
+    "dashboard:mock": "node --env-file-if-exists=.env local-server.js --mock"
   }
 }

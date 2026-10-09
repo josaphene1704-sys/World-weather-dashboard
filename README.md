@@ -27,4 +27,9 @@
 - Each refresh costs one call per country (21 calls). Data is cached in `data/` and refreshed only via the button.
 - Cities are fetched one at a time with a short pause, because the free plan rejects parallel bursts.
 - Airtable columns: `Capital`, `City ID`, `Country`, `Continent`, `Latitude`, `Longitude`, `Temperature (°C)`, `Feels Like (°C)`.
-  Optional columns are filled when present: `Description`, `Weather Code`, `Humidity (%)`, `Wind Speed (km/h)`, `Wind Direction`, `UV Index`, `Last Updated`.
+  Optional columns are filled when present: `Description`, `Weather Code`, `Humidity (%)`, `Wind (km/h)`, `Wind Direction`, `UV Index`, `UTC Offset`, `Updated At` (date with time).
+- The dashboard reads its cards from the table and re-reads it every 30 seconds.
+- Opening the dashboard with `?refresh=1` (e.g. from an Airtable Interface button) runs a refresh, at most once per 10 minutes.
+
+## Deploy (Vercel)
+`api/` holds the serverless functions and `public/` the page. Set the same variables as in `.env` in the Vercel project, then run `vercel deploy --prod`.

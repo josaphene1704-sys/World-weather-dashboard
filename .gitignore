@@ -5,3 +5,5 @@ node_modules
 !.env.example
 # Local cache + API usage counter
 data/
+
+.vercel
