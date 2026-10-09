@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CITIES } from './cities.js';
 import { fetchCurrent, hasApiKey } from './weatherstack.js';
+import { syncToAirtable, hasAirtableConfig } from './airtable.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -15,9 +16,13 @@ const PORT = Number(process.env.PORT) || 3000;
 const MOCK = process.env.MOCK === '1' || process.argv.includes('--mock');
 const MONTHLY_LIMIT = Number(process.env.MONTHLY_CALL_LIMIT) || 100; // Weatherstack free plan
 const MIN_REFRESH_MINUTES = 10;
-const CONCURRENCY = 4;
+// The free plan rejects bursts of parallel requests, so call one city at a time with a pause
+const REQUEST_DELAY_MS = Number(process.env.REQUEST_DELAY_MS) || 1200;
+const RATE_LIMIT_RETRY_MS = 3000;
 // Stop the whole refresh on these: invalid key, inactive account, quota reached
 const FATAL_CODES = new Set([101, 102, 104]);
+const isRateLimit = (err) => err.code === 106 || /rate limit/i.test(err.message);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const DATA_DIR = path.join(ROOT, 'data');
 const CACHE_FILE = path.join(DATA_DIR, MOCK ? 'weather.mock.json' : 'weather.json');
@@ -97,28 +102,41 @@ function mockResponse(city) {
 }
 
 async function fetchAllCities() {
-  const results = new Array(CITIES.length);
-  let next = 0;
+  const results = [];
   let calls = 0;
   let fatal = null;
 
-  async function worker() {
-    while (next < CITIES.length && !fatal) {
-      const i = next++;
-      const city = CITIES[i];
-      try {
-        const raw = MOCK ? mockResponse(city) : await fetchCurrent(`${city.lat},${city.lon}`);
-        results[i] = normalize(city, raw);
-      } catch (err) {
-        if (FATAL_CODES.has(err.code)) fatal = err;
-        results[i] = { ...city, error: err.message };
-      } finally {
-        if (!MOCK) calls++; // count failures too - better to over-count than to exceed the quota
+  async function fetchCity(city) {
+    calls++; // count failures too - better to over-count than to exceed the quota
+    return fetchCurrent(`${city.lat},${city.lon}`);
+  }
+
+  for (const city of CITIES) {
+    if (fatal) {
+      results.push({ ...city, error: fatal.message });
+      continue;
+    }
+    try {
+      if (MOCK) {
+        results.push(normalize(city, mockResponse(city)));
+        continue;
       }
+      if (calls) await sleep(REQUEST_DELAY_MS);
+      let raw;
+      try {
+        raw = await fetchCity(city);
+      } catch (err) {
+        if (!isRateLimit(err)) throw err;
+        await sleep(RATE_LIMIT_RETRY_MS); // one retry after a longer pause
+        raw = await fetchCity(city);
+      }
+      results.push(normalize(city, raw));
+    } catch (err) {
+      if (FATAL_CODES.has(err.code)) fatal = err;
+      results.push({ ...city, error: err.message });
     }
   }
 
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   await addUsage(calls);
 
   if (fatal) throw new HttpError(502, fatal.message);
@@ -136,8 +154,23 @@ async function refresh() {
     }
   }
   const data = { updatedAt: Date.now(), cities: await fetchAllCities() };
+  data.airtable = await syncAirtable(data);
   await writeJson(CACHE_FILE, data);
   return data;
+}
+
+// A failed sync must not break the dashboard - report it alongside the data instead
+async function syncAirtable(data) {
+  if (MOCK) return { status: 'skipped', reason: 'mock' };
+  if (!hasAirtableConfig()) return { status: 'skipped', reason: 'missing AIRTABLE_* in .env' };
+  try {
+    const synced = await syncToAirtable(data);
+    console.log(`Airtable: ${synced} rows synced`);
+    return { status: 'ok', synced };
+  } catch (err) {
+    console.error(err.message);
+    return { status: 'error', error: err.message };
+  }
 }
 
 // Prevent two simultaneous refreshes from spending the quota twice
@@ -169,7 +202,9 @@ async function getWeather() {
 // POST: explicit refresh from the dashboard button
 async function forceRefresh() {
   const cache = await readJson(CACHE_FILE);
-  if (cache && Date.now() - cache.updatedAt < MIN_REFRESH_MINUTES * 60_000) {
+  // Allow an early retry when the last refresh left some cities without data
+  const complete = cache?.cities?.every((c) => !c.error);
+  if (complete && Date.now() - cache.updatedAt < MIN_REFRESH_MINUTES * 60_000) {
     throw new HttpError(429, `הנתונים עודכנו לפני פחות מ-${MIN_REFRESH_MINUTES} דקות – אין צורך לרענן עדיין`);
   }
   return withMeta(await refreshOnce(), { source: 'live' });

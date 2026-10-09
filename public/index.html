@@ -71,6 +71,7 @@
     .banner { padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; font-size: .9rem; }
     .banner.warn { background: var(--warn-bg); color: var(--warn-text); }
     .banner.error { background: var(--error-bg); color: var(--error-text); }
+    .banner.info { background: var(--surface-2); color: var(--text); }
     [hidden] { display: none !important; }
 
     /* Stats */
@@ -314,7 +315,11 @@
         } else {
           state.data = body;
           const failed = body.cities.filter((c) => c.error).length;
-          showBanner(failed ? `לא התקבלו נתונים עבור ${failed} מדינות` : '');
+          const at = body.source === 'live' ? body.airtable : null;
+          const atMsg = at?.status === 'ok' ? `✅ ${at.synced} שורות עודכנו באיירטייבל`
+            : at?.status === 'error' ? `⚠️ הסנכרון לאיירטייבל נכשל: ${at.error}` : '';
+          const msgs = [failed && `לא התקבלו נתונים עבור ${failed} מדינות`, atMsg].filter(Boolean);
+          showBanner(msgs.join(' · '), failed || at?.status === 'error' ? 'warn' : 'info');
         }
         render();
       } catch {
